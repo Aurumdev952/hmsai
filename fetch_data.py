@@ -34,8 +34,8 @@ def get_existing_data_files():
     existing_entries = set()
     for file in existing_files:
         try:
-            parts = file.replace("data_acquire_data_", "").replace(".csv", "").split("_")
-            if len(parts) >= 2:
+            parts = file.replace("data_acquire_data_", "").replace(".csv", "").rsplit("_", 1)
+            if len(parts) == 2:
                 QuantityName = parts[0]
                 DID = parts[1]
                 existing_entries.add((QuantityName, DID))
