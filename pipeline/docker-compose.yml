@@ -1,0 +1,68 @@
+services:
+  prefect:
+    image: prefecthq/prefect:3-latest
+    container_name: prefect
+    environment:
+      - PREFECT_API_URL=http:/127.0.0.1:4200
+    volumes:
+      - prefect:/workspace
+    ports:
+      - "4200:4200" # Prefect UI port
+    command: "prefect server start --host 0.0.0.0 --port 4200"
+
+  prefect-flow:
+    build:
+      context: .
+    container_name: prefect-flow
+    command: sh -c "prefect version && python deployment.py"
+    environment:
+      - PREFECT_API_URL=http://host.docker.internal:4200/api
+    depends_on:
+      - prefect
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow
+    container_name: mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_ARTIFACT_ROOT=/mlflow/artifacts
+      - BACKEND_STORE_URI=sqlite:///mlflow.db
+    ports:
+      - "5000:5000" # MLflow UI
+    volumes:
+      - mlflow:/mlflow
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0
+
+  model-serving:
+    image: ghcr.io/mlflow/mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    ports:
+      - "8088:8088"
+    command: >
+      mlflow models serve -m "models:/DeployedModel/latest" --host 0.0.0.0 --port 8088
+    volumes:
+      - mlflow:/mlflow
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    ports:
+      - "9000:9000" # MinIO server
+      - "9001:9001" # MinIO console
+    volumes:
+      - minio:/data
+      - minio:/root/.minio
+    command: "server /data --console-address :9001"
+
+volumes:
+  minio:
+  mlflow:
+  prefect:
+
+networks:
+  default:
+    driver: bridge
