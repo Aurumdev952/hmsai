@@ -3,7 +3,7 @@ services:
     image: prefecthq/prefect:3-latest
     container_name: prefect
     environment:
-      - PREFECT_API_URL=http:/127.0.0.1:4200
+      - PREFECT_API_URL=http://127.0.0.1:4200/api
     volumes:
       - prefect:/workspace
     ports:
@@ -17,32 +17,50 @@ services:
     command: sh -c "prefect version && python deployment.py"
     environment:
       - PREFECT_API_URL=http://host.docker.internal:4200/api
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
+      - AWS_DEFAULT_REGION=us-east-1
     depends_on:
       - prefect
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
     container_name: mlflow
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - MLFLOW_ARTIFACT_ROOT=/mlflow/artifacts
+      - MLFLOW_ARTIFACT_ROOT=s3://pipeline/artifacts
       - BACKEND_STORE_URI=sqlite:///mlflow.db
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
+      - AWS_DEFAULT_REGION=us-east-1
+
     ports:
       - "5000:5000" # MLflow UI
     volumes:
-      - /mlflow:/mlflow
-    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0
+      - mlflow:/mlflow
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination s3://pipeline/artifacts --default-artifact-root s3://pipeline/artifacts --host 0.0.0.0 --serve-artifacts
 
   model-serving:
-    image: ghcr.io/mlflow/mlflow
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow2
+    container_name: mlflow-serving
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
+      - AWS_DEFAULT_REGION=us-east-1
     ports:
       - "8088:8088"
     command: >
-      mlflow models serve -m "models:/DeployedModel/latest" --host 0.0.0.0 --port 8088
+      mlflow models serve -m "models:/DeployedModel/latest" --host 0.0.0.0 --port 8088 --env-manager=local
     volumes:
-      - /mlflow:/mlflow
+      - mlflow:/mlflow
 
   minio:
     image: minio/minio:latest
@@ -60,6 +78,7 @@ services:
 
 volumes:
   minio:
+  mlflow:
   prefect:
 
 networks:

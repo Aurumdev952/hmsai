@@ -1,0 +1,11 @@
+# Use the official MLflow image as the base image
+FROM ghcr.io/mlflow/mlflow
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Set the command to run MLflow server
+CMD ["mlflow", "models", "serve", "-m", "models:/DeployedModel/latest", "--host", "0.0.0.0", "--port", "8088", "--env-manager", "local"]

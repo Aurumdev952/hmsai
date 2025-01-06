@@ -1,0 +1,8 @@
+# Use the official MLflow image as the base image
+FROM ghcr.io/mlflow/mlflow
+
+# Install boto3
+RUN pip install boto3
+
+# Set the command to run MLflow server
+CMD ["mlflow", "server", "--backend-store-uri", "sqlite:///mlflow.db", "--artifacts-destination", "s3://pipeline/artifacts", "--default-artifact-root", "s3://pipeline/artifacts", "--host", "0.0.0.0", "--serve-artifacts"]
