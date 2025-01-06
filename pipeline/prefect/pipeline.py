@@ -43,7 +43,7 @@ def get_s3_client():
     )
 
 # MLflow Configuration
-MLFLOW_TRACKING_URI = 'http://host.docker.internal:5000'
+MLFLOW_TRACKING_URI = '/mlflow'
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment('Model Training Pipeline')
 
