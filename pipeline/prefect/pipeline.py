@@ -50,9 +50,15 @@ mlflow.set_experiment('Model Training Pipeline')
 @task
 def fetch_data_from_api() -> dict:
     """Fetch data from API and save to temporary files."""
+    s3 = get_s3_client()
     tmp_dir = "./tmp"  # Replace with your desired path if needed
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
+    try:
+        s3.head_object(Bucket=S3_BUCKET, Key=S3_MODEL_KEY)
+    except:
+        print("Model does not exist")
+        s3.upload_file('./latest_model.h5', S3_BUCKET, S3_MODEL_KEY)
     current_date = datetime.now()
     start_date = current_date - timedelta(days=current_date.weekday())
     end_date = start_date + timedelta(days=6)

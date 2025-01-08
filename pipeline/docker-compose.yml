@@ -44,24 +44,6 @@ services:
       - mlflow:/mlflow
     command: mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination s3://pipeline/artifacts --default-artifact-root s3://pipeline/artifacts --host 0.0.0.0 --serve-artifacts
 
-  model-serving:
-    build:
-      context: .
-      dockerfile: Dockerfile.mlflow2
-    container_name: mlflow-serving
-    environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - AWS_ACCESS_KEY_ID=minioadmin
-      - AWS_SECRET_ACCESS_KEY=minioadmin
-      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
-      - AWS_DEFAULT_REGION=us-east-1
-    ports:
-      - "8088:8088"
-    command: >
-      mlflow models serve -m "models:/DeployedModel/latest" --host 0.0.0.0 --port 8088 --env-manager=local
-    volumes:
-      - mlflow:/mlflow
-
   minio:
     image: minio/minio:latest
     container_name: minio
@@ -75,6 +57,19 @@ services:
       - minio:/data
       - minio:/root/.minio
     command: "server /data --console-address :9001"
+    entrypoint: >
+      /bin/sh -c '
+        isAlive() { curl -sf http://minio:9000/minio/health/live; }          # check if Minio is alive
+        minio $0 "$@" --quiet & echo $! > /tmp/minio.pid                     # start Minio in the background
+        until isAlive; do sleep 1; done                                      # wait until Minio is alive
+        echo "MinIO is ready. Proceeding with setup..."
+        mc alias set myminio http://minio:9000 minioadmin minioadmin     # setup Minio client
+        mc mb myminio/pipeline/ --ignore-existing                         # create test bucket
+        mc anonymous set public myminio/pipeline                         # make the test bucket public
+        kill -s INT $(cat /tmp/minio.pid) && rm /tmp/minio.pid               # stop Minio
+        while isAlive; do sleep 0.1; done                                    # wait until Minio is stopped
+        exec minio $0 "$@"                                                   # start Minio in the foreground
+      '
 
 volumes:
   minio:
