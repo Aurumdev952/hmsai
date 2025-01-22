@@ -1,0 +1,81 @@
+services:
+  prefect:
+    image: prefecthq/prefect:3-latest
+    container_name: prefect
+    environment:
+      - PREFECT_API_URL=http://127.0.0.1:4200/api
+    volumes:
+      - prefect:/workspace
+    ports:
+      - "4200:4200" # Prefect UI port
+    command: "prefect server start --host 0.0.0.0 --port 4200"
+
+  prefect-flow:
+    build:
+      context: .
+    container_name: prefect-flow
+    command: sh -c "prefect version && python deployment.py"
+    environment:
+      - PREFECT_API_URL=http://host.docker.internal:4200/api
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
+      - AWS_DEFAULT_REGION=us-east-1
+    depends_on:
+      - prefect
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    container_name: mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_ARTIFACT_ROOT=s3://pipeline/artifacts
+      - BACKEND_STORE_URI=sqlite:///mlflow.db
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
+      - AWS_DEFAULT_REGION=us-east-1
+
+    ports:
+      - "5000:5000" # MLflow UI
+    volumes:
+      - mlflow:/mlflow
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination s3://pipeline/artifacts --default-artifact-root s3://pipeline/artifacts --host 0.0.0.0 --serve-artifacts
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    ports:
+      - "9000:9000" # MinIO server
+      - "9001:9001" # MinIO console
+    volumes:
+      - minio:/data
+      - minio:/root/.minio
+    command: "server /data --console-address :9001"
+    entrypoint: >
+      /bin/sh -c '
+        isAlive() { curl -sf http://minio:9000/minio/health/live; }          # check if Minio is alive
+        minio $0 "$@" --quiet & echo $! > /tmp/minio.pid                     # start Minio in the background
+        until isAlive; do sleep 1; done                                      # wait until Minio is alive
+        echo "MinIO is ready. Proceeding with setup..."
+        mc alias set myminio http://minio:9000 minioadmin minioadmin     # setup Minio client
+        mc mb myminio/pipeline/ --ignore-existing                         # create test bucket
+        mc anonymous set public myminio/pipeline                         # make the test bucket public
+        kill -s INT $(cat /tmp/minio.pid) && rm /tmp/minio.pid               # stop Minio
+        while isAlive; do sleep 0.1; done                                    # wait until Minio is stopped
+        exec minio $0 "$@"                                                   # start Minio in the foreground
+      '
+
+volumes:
+  minio:
+  mlflow:
+  prefect:
+
+networks:
+  default:
+    driver: bridge
