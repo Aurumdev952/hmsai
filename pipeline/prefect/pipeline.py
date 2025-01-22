@@ -178,7 +178,7 @@ def train_model(features_path: str, config: Config) -> str:
                     registered_model_name=config.deployment,
                     signature=signature,
                 )
-                print(f"New model weights saved to S3: s3://{S3_BUCKET}/{f"models/{config.model_name}_model.h5"}")
+                print(f"New model weights saved to S3: s3://{S3_BUCKET}/models/{config.model_name}_model.h5")
                 print(f"Model deployed successfully")
             else:
                 print(f"Validation failed. Model not saved. Loss: {val_loss}")
