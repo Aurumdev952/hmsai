@@ -12,6 +12,7 @@ def process_file(file_path):
     df = pd.read_csv(file_path)
     value_column = [col for col in df.columns if col.lower() != 'time'][0]
     df['Time'] = pd.to_datetime(df['Time'])
+    df.ffill(inplace=True)
     df.set_index('Time', inplace=True)
     df = df.resample(RESAMPLE_INTERVAL).mean()
     z_scores = (df[value_column] - df[value_column].mean()) / df[value_column].std()
@@ -102,6 +103,6 @@ def process_data_and_feature_enginnering():
 
     # Combine all features
     all_features = pd.concat([statistical_features, dynamic_features, correlation_features, rainflow_features, stl_features], axis=1)
-    all_features.dropna(inplace=True)
+    all_features.bfill(inplace=True)
     return all_features
-    print(f"Feature engineering complete")
+
