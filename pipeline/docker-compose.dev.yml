@@ -3,7 +3,7 @@ services:
     image: prefecthq/prefect:3-latest
     container_name: prefect
     environment:
-      - PREFECT_API_URL=http://${LOCALHOST_IP}:4200/api
+      - PREFECT_API_URL=http://127.0.0.1:4200/api
     volumes:
       - prefect:/workspace
     ports:
@@ -16,10 +16,10 @@ services:
     container_name: prefect-flow
     command: sh -c "prefect version && python deployment.py"
     environment:
-      - PREFECT_API_URL=http://${LOCALHOST_IP}:4200/api
+      - PREFECT_API_URL=http://host.docker.internal:4200/api
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
-      - MLFLOW_S3_ENDPOINT_URL=http://${LOCALHOST_IP}:9000
+      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
       - AWS_DEFAULT_REGION=us-east-1
     depends_on:
       - prefect
@@ -35,8 +35,9 @@ services:
       - BACKEND_STORE_URI=sqlite:///mlflow.db
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
-      - MLFLOW_S3_ENDPOINT_URL=http://${LOCALHOST_IP}:9000
+      - MLFLOW_S3_ENDPOINT_URL=http://host.docker.internal:9000
       - AWS_DEFAULT_REGION=us-east-1
+
     ports:
       - "5000:5000" # MLflow UI
     volumes:

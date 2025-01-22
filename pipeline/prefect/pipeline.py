@@ -35,7 +35,7 @@ S3_BUCKET = "pipeline"
 S3_FEATURES_KEY = "features/latest_features.csv"
 # S3_MODEL_KEY = "models/latest_model.h5"
 AWS_REGION = "your-region"
-S3_ENDPOINT_URL = "http://host.docker.internal:9000"
+S3_ENDPOINT_URL = "http://minio:9000"
 S3_ACCESS_KEY = "minioadmin"
 S3_SECRET_KEY = "minioadmin"
 EPOCHS = 10
@@ -57,7 +57,7 @@ def get_s3_client():
 
 
 # MLflow Configuration
-MLFLOW_TRACKING_URI = "http://host.docker.internal:5000"
+MLFLOW_TRACKING_URI = 'http://mlflow:5000'
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment("Model Training Pipeline")
 
